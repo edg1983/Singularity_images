@@ -1,0 +1,97 @@
+.
+├── resources_files.txt
+├── ROH.ExpHunter.GADO
+│   ├── GADO
+│   │   ├── hp.obo
+│   │   ├── hpo_predictions_genes_01_02_2018.txt
+│   │   ├── hpo_predictions_info_01_02_2018.txt
+│   │   └── hpo_predictions_sigOnly_spiked_01_02_2018.zip
+│   └── ROH
+│       ├── chr10.genetic_map_hg38.txt.gz
+│       ├── chr11.genetic_map_hg38.txt.gz
+│       ├── chr12.genetic_map_hg38.txt.gz
+│       ├── chr13.genetic_map_hg38.txt.gz
+│       ├── chr14.genetic_map_hg38.txt.gz
+│       ├── chr15.genetic_map_hg38.txt.gz
+│       ├── chr16.genetic_map_hg38.txt.gz
+│       ├── chr17.genetic_map_hg38.txt.gz
+│       ├── chr18.genetic_map_hg38.txt.gz
+│       ├── chr19.genetic_map_hg38.txt.gz
+│       ├── chr1.genetic_map_hg38.txt.gz
+│       ├── chr20.genetic_map_hg38.txt.gz
+│       ├── chr21.genetic_map_hg38.txt.gz
+│       ├── chr22.genetic_map_hg38.txt.gz
+│       ├── chr2.genetic_map_hg38.txt.gz
+│       ├── chr3.genetic_map_hg38.txt.gz
+│       ├── chr4.genetic_map_hg38.txt.gz
+│       ├── chr5.genetic_map_hg38.txt.gz
+│       ├── chr6.genetic_map_hg38.txt.gz
+│       ├── chr7.genetic_map_hg38.txt.gz
+│       ├── chr8.genetic_map_hg38.txt.gz
+│       ├── chr9.genetic_map_hg38.txt.gz
+│       ├── chrlist
+│       ├── chrX.genetic_map_hg38.txt.gz
+│       └── Header_line
+├── SV.annot_filter
+│   ├── GRCh37_1000G_phase3_SV.DEL.bed
+│   ├── GRCh37_1000G_phase3_SV.DUP.bed
+│   ├── GRCh37_1000G_phase3_SV.INS.bed
+│   ├── GRCh37_1000G_phase3_SV.INV.bed
+│   ├── GRCh37_20190404_IMH_DEL_SV.sorted.bed
+│   ├── GRCh37_20190404_IMH_DUP_SV.sorted.bed
+│   ├── GRCh37_20190404_IMH_INS_SV.sorted.bed
+│   ├── GRCh37_20190404_IMH_INV_SV.sorted.bed
+│   ├── GRCh37_gencode.basic_CDS.bed
+│   ├── GRCh37_gencode.basic_gene.bed
+│   ├── GRCh37_gnomad_v2.1_sv.DEL.bed
+│   ├── GRCh37_gnomad_v2.1_sv.DUP.bed
+│   ├── GRCh37_gnomad_v2.1_sv.INS.bed
+│   ├── GRCh37_gnomad_v2.1_sv.INV.bed
+│   ├── GRCh37_regulatory_regions.v2.0.clean.bed
+│   ├── GRCh38_1000G_phase3_SV.DEL.bed
+│   ├── GRCh38_1000G_phase3_SV.DUP.bed
+│   ├── GRCh38_1000G_phase3_SV.INS.bed
+│   ├── GRCh38_1000G_phase3_SV.INV.bed
+│   ├── GRCh38_20190404_IMH_DEL_SV.sorted.bed
+│   ├── GRCh38_20190404_IMH_DUP_SV.sorted.bed
+│   ├── GRCh38_20190404_IMH_INS_SV.sorted.bed
+│   ├── GRCh38_20190404_IMH_INV_SV.sorted.bed
+│   ├── GRCh38_gencode.basic_CDS.bed
+│   ├── GRCh38_gencode.basic_gene.bed
+│   ├── GRCh38_gnomad_v2.1_sv.DEL.bed
+│   ├── GRCh38_gnomad_v2.1_sv.DUP.bed
+│   ├── GRCh38_gnomad_v2.1_sv.INS.bed
+│   ├── GRCh38_gnomad_v2.1_sv.INV.bed
+│   ├── GRCh38_regulatory_regions.v1.0.clean.bed
+│   ├── GRCh38_regulatory_regions.v2.0.clean.bed
+│   ├── hg19_1000G_phase3_SV.DEL.bed
+│   ├── hg19_1000G_phase3_SV.DUP.bed
+│   ├── hg19_1000G_phase3_SV.INS.bed
+│   ├── hg19_1000G_phase3_SV.INV.bed
+│   ├── hg19_20190404_IMH_DEL_SV.sorted.bed
+│   ├── hg19_20190404_IMH_DUP_SV.sorted.bed
+│   ├── hg19_20190404_IMH_INS_SV.sorted.bed
+│   ├── hg19_20190404_IMH_INV_SV.sorted.bed
+│   ├── hg19_gencode.basic_CDS.bed
+│   ├── hg19_gencode.basic_gene.bed
+│   ├── hg19_gnomad_v2.1_sv.DEL.bed
+│   ├── hg19_gnomad_v2.1_sv.DUP.bed
+│   ├── hg19_gnomad_v2.1_sv.INS.bed
+│   ├── hg19_gnomad_v2.1_sv.INV.bed
+│   ├── hg19_regulatory_regions.v2.0.clean.bed
+│   ├── hg38_CNV_ExcludeRegions+LowComplexity.bed
+│   └── SV_annotation.json
+├── SVpipeline
+│   ├── hg38_CNV_ExcludeRegions.bed
+│   ├── hg38_CNV_ExcludeRegions+LowComplexity.merged.bed
+│   ├── HICF2_training_vars.bedpe.gz
+│   ├── Make_training_set.sh
+│   ├── repeatMasker.recent.lt200millidiv.LINE_SINE_SVA.GRCh38.sorted.bed.gz
+│   ├── repeatMasker.recent.lt200millidiv.LINE_SINE_SVA.GRCh38.sorted.bed.gz.tbi
+│   └── training_vars.bedpe.gz
+└── V2_anno.var2reg
+    ├── snpEff_v4_3_GRCh37.87.zip
+    ├── snpEff_v4_3_GRCh38.86.zip
+    └── snpEff_v4_3_GRCh38.92.zip
+
+6 directories, 88 files

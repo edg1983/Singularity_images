@@ -1,0 +1,11 @@
+#!/bin/bash
+GC="-XX:+UseSerialGC"
+MEMORY="-Xmx12g"
+if [[ ${1:0:4} == '-Xmx' ]] ;
+then
+        MEMORY=$1
+        echo "setting memory to $MEMORY"
+        shift
+fi
+#java8 $GC $MEMORY -jar $SOFTWARE/genomic-tools/genomic-tools-0.0.1-SNAPSHOT.jar $@
+java8 $GC $MEMORY -jar $SOFTWARE/genomic-tools/genomic-tools-0.0.2-SNAPSHOT.jar $@

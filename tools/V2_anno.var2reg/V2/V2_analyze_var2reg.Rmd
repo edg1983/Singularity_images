@@ -1,0 +1,797 @@
+---
+title: "V2_analyze_var2reg"
+author: "niko@well.ox.ac.uk"
+documentclass: article
+fontsize: 10pt
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    fig_caption: yes
+    fig_height: 10
+    fig_width: 10
+geometry: margin=1in
+classoption: a4paper
+params:
+    truth:
+        value: "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/noncoding/RESULTS/HICF2_phase1_candidate_genes.tsv"
+    conf:
+        value: "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/cohort_test/02_var2reg/cohort_mini/V2.var2reg.effective_conf.json"
+    idx:
+        value: "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/cohort_test/02_var2reg/cohort_mini/V2.var2reg.idx.tsv.gz"
+    output:
+        value: "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/cohort_test/02_var2reg/cohort_mini/V2.var2reg.report.pdf"
+---
+<style type="text/css">
+body, td {
+   font-size: 10px;
+}
+code.r{
+  font-size: 10px;
+}
+pre {
+  font-size: 10px
+}
+</style>
+
+This RMD file analyzes the output of the var2reg script
+
+```{r setup, include=FALSE}
+list.of.packages <- c("devtools","rlang", "R.utils", "dplyr", "lattice", "reshape2", "grid", "gridExtra", "tidyverse", "limma", "rjson", "egg", "rlist", "data.table", "PKNCA", "minpack.lm", "gganimate", "zoo", "topGO", "crayon", "corrplot", "plotly", "DT", "psycho", "stringr", "gghighlight")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) { install.packages(new.packages) }
+lapply(list.of.packages, FUN = function(X) { do.call("require", list(X)) })
+select=dplyr::select
+
+ttheme <- gridExtra::ttheme_default(
+  core = list(fg_params=list(cex = 0.7)),
+  colhead = list(fg_params=list(cex = 0.7)),
+  rowhead = list(fg_params=list(cex = 0.7)))
+
+
+#
+# Plots a histogram of a string field
+plotHist = function(d, strfield, splitChar=",", removeChars=c(), title=paste0("Frequency histogram of ", strfield ), breaks=20, rot=F,log=T) {
+  dat = unlist(str_split(d[[strfield]], splitChar))
+  dat = dat[!dat %in% removeChars ]
+  #print(table(dat))
+  res=(hist(table(dat), plot=FALSE, breaks=50))
+  maxEle = table(dat)[which.max(table(dat))]
+  dat = data.frame(xmin=head(res$breaks, -1L),
+                     xmax=tail(res$breaks, -1L),
+                     ymin=0.0,
+                     ymax=res$counts)
+  yax=NULL
+  if ( log == T ) {
+    yax = scale_y_continuous(name="log(freq)", trans="pseudo_log")
+  } 
+  plt=(ggplot(dat, aes(xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax)) +
+       geom_rect(size=0.5, colour="grey30", fill="grey80") + yax +
+         ggtitle(title))
+  if ( rot )
+    plt = plt + coord_flip()
+
+  tbl=tableGrob(t(maxEle), theme=ttheme)
+  grid.arrange(plt, tbl,
+               nrow=2,
+               as.table=TRUE,
+               heights=c(5,1))
+}
+
+
+#
+# barplot the distribution of a given field
+#
+plotTable = function(d, field, title=paste0("Table of ", field), factorOrder=NULL, labels=NULL, log=F, datatable=T, rot=F, hist=F, sort=T) {
+  dat=NULL
+  if ( is.null( factorOrder) ) {
+    dat=table(factor(d[[field]]), exclude = NULL)
+    if ( length(dat)==1) {
+      # special case: all entries have same value
+      dat=table(factor(d[[field]], levels=c(unique(d[[field]]), "<other>")), exclude = NULL)
+    }
+    if ( sort == T) {
+      dat = sort(dat, decreasing = T)
+    }
+  } else {
+    dat=table(factor(d[[field]], levels=factorOrder), exclude = NULL)
+  }
+
+  xax=NULL
+  if ( ! is.null(labels)) {
+    xax = scale_x_discrete(labels=labels) 
+  } else {
+    xax=scale_x_discrete()
+  }
+  yax=NULL
+  if ( log == T ) {
+    yax = scale_y_continuous(name="log(count)", trans="pseudo_log")
+      #scale_y_log10(name="log(count)", trans="pseudo_log") 
+  } 
+  plt=(ggplot(reshape2::melt(dat), aes(x=factor(Var1), y=value)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle(title) + xlab("") + ylab("count") + xax + yax)
+  
+  if ( rot )
+    plt = plt + coord_flip()
+  #tbl=tableGrob(grid.table(t(dat), theme=ttheme))
+  tbl=tableGrob(t(dat), theme=ttheme)
+  if (datatable) {
+    grid.arrange(plt, tbl,
+                 nrow=2,
+                 as.table=TRUE,
+                 heights=c(5,1))
+  } else {
+    print(plt)
+  }
+}
+
+# create a violplot + boxplot 
+plotDistViol = function( dat, feature, group, ymax=NA, title=NULL, log=F) {
+  if ( is.null(title)) {
+    title = paste0(  feature," [n=", nrow(dat), "]")
+  }
+  xax = scale_x_discrete()
+  yax=NULL
+  if ( log == T ) {
+    yax = scale_y_continuous(name=paste0("log(", feature, ")"), trans="pseudo_log")
+      #scale_y_log10(name="log(count)", trans="pseudo_log") 
+  } 
+  p = ggplot(dat, aes_string(y=feature, x=group, group=group) ) +
+         geom_violin() +
+         geom_boxplot(aes_string(fill=group), width=.1) +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle(title) + xlab("") + ylab(feature) + xax + yax
+  if ( ! is.na(ymax)) {
+    p= p + ylim(0, ymax)
+  }
+  print(p)
+}
+
+
+# create a density plot 
+plotDensity = function( dat, feature, xmax=NA, title=NULL, logx=F, logy=F) {
+  if ( is.null(title)) {
+    title = paste0(  feature," [n=", nrow(dat), "]")
+  }
+  yax=NULL
+  if ( logx == T ) {
+    yax = scale_y_continuous(name=paste0("log(count)"), trans="pseudo_log")
+      #scale_y_log10(name="log(count)", trans="pseudo_log") 
+  } 
+  xax=NULL
+  if ( logx == T ) {
+    xax = scale_x_continuous(name=paste0("log(", feature, ")"), trans="pseudo_log")
+      #scale_y_log10(name="log(count)", trans="pseudo_log") 
+  } 
+  p = ggplot(dat, aes_string(x=feature) ) +
+         geom_density() +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle(title) + xlab("") + ylab(feature) + yax + xax
+  if ( ! is.na(xmax)) {
+    p= p + xlim(0, xmax)
+  }
+  return(p)
+}
+
+# outlier detection, @see https://www.r-bloggers.com/combined-outlier-detection-with-dplyr-and-ruler/
+is_out_mad <- function(x, thres = 5, na.rm = TRUE) {
+  abs(x - median(x, na.rm = na.rm)) > thres * mad(x, na.rm = na.rm)
+}
+
+
+CHR=paste0("chr", c(seq(1,22), "X", "Y"))
+CHR_SIZE = list(
+  chr1=248956422,
+  chr2=242193529,
+  chr3=198295559,
+  chr4=190214555,
+  chr5=181538259,
+  chr6=170805979,
+  chr7=159345973,
+  chr8=145138636,
+  chr9=138394717,
+  chr10=133797422,
+  chr11=135086622,
+  chr12=133275309,
+  chr13=114364328,
+  chr14=107043718,
+  chr15=101991189,
+  chr16=90338345,
+  chr17=83257441,
+  chr18=80373285,
+  chr19=58617616,
+  chr20=64444167,
+  chr21=46709983,
+  chr22=50818468,
+  chrX=156040895,
+  chrY=57227415,
+  chrM=16569
+)
+
+#
+# for mapping to local paths.
+pathmap=data.frame(
+  from=c("/gpfs2/well/gel/HICF2/HICF2_hg38_remap/annotations/annotest/", 
+         "/well/gel/HICF2/HICF2_hg38_remap/RareDisease_data/PED/",
+         "/well/gel/HICF2/HICF2_hg38_remap/RareDisease_data/GADO_HPO/",
+         "/well/gel/HICF2/HICF2_hg38_remap/RareDisease_data/Exomiser/"),
+  to=c("/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/",
+       "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/noncoding/ped/",
+       "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/noncoding/gado/",
+       "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/noncoding/exomiser/")
+)
+map_local_paths = function(dat, pathmap) {
+    for ( i in 1:nrow(pathmap) ) {
+      dat = data.frame(lapply(dat, function(x) { gsub( pathmap[i,]$from, pathmap[i,]$to, x ) } ))
+    }
+  return(dat)
+}
+
+loadData = function(dataF, append="", header=T, source=NA) {
+  dataF = as.character(paste0(dataF, append))
+  print(paste("Loading", dataF))
+  if ( endsWith(dataF, ".gz") ) {
+    dat = (fread(cmd=paste('zgrep -v "^#"', dataF), header=header, sep="\t", na.strings=c("na","NA",".")))
+  } else {
+    dat =(fread(cmd=paste('grep -v "^#"', dataF), header=header, sep="\t", na.strings=c("na","NA",".")))
+  }
+  if ( ! is.na(source)) {
+    dat$source = source
+  }
+  return(dat)
+}
+idx=loadData(params$idx)
+idx=map_local_paths(idx, pathmap)
+print(paste0("Loaded datasets: ", paste(idx$ID, collapse = ", ")))
+
+vars=list()
+genes=list()
+comphet=list()
+peds=list()
+
+for ( i in 1:nrow(idx)) {
+  id=as.character(idx[i,]$ID)
+  vars[[id]]=loadData(idx[i,]$VariantF, append=".gz", source=id) 
+  genes[[id]]=loadData(idx[i,]$GeneF, append=".gz", source=id) 
+  comphet[[id]]=loadData(idx[i,]$ComphetF, append=".gz", source=id) 
+  peds[[id]]=loadData(idx[i,]$PedigreeF, append="", header=F, source=id) 
+  colnames(peds[[id]])=c("fid", "id", "patid", "matid", "sex", "affected", "source")
+}
+
+# create combined table with unique variant ids for counting!
+cols = c(
+"ID","Var2reg_id","Gene","Chr","Pos","End","Ref","Alt","VarType","knownIds","MaxPopAF","cohortAF","Region_id",
+"Db_source", "Reg_type", "Closest_gene_dist","Consequence","d_score","a_score","sup_rec","sup_dom","sup_dnm","sup_comphet_mum","sup_comphet_dad","num_hq_calls","hom_aff","hom_unaff","het_aff","het_unaff",
+"CADD_PhredScore","CADD_RawScore","DANN_score","CCR_pct", "LoF_tolerance", "FIRE_score","LinSight","ReMM_score","dbscSNV_ada","dbscSNV_rf",
+"PhyloP100", "REVEL_score", "ExPECTO_MAX_VALUE", "NCBoost_score", "dbNSFP_PP2_HDIV", "dbNSFP_PP2_HVAR", "SpliceAI_SNP_SpliceAI_max", "SpliceAI_SNP_SpliceAI_DP", "SpliceAI_INDEL_SpliceAI_max", "SpliceAI_INDEL_SpliceAI_DP", "MCAP_score", "MMLQ",  "TC",
+"LowMappability","LowComplexity","SegDup","RefSeqReg","DNase", "TFBS", "PanelApp", "TopVariableGenes", "UCNE", "source")
+
+CNV_TYPES = c("DEL", "DEL:ME", "DUP", "INV")
+
+all_vars = do.call(rbind, lapply(vars, select, all_of(cols))) %>% mutate(var_size=End-Pos+1) %>% distinct(source, Var2reg_id, .keep_all= TRUE) %>% ungroup()
+all_genes = bind_rows( genes ) %>% distinct(source, Var2reg_id, .keep_all= TRUE) %>% ungroup()
+all_comphet = bind_rows( comphet ) %>% distinct(source, Var2reg_id, .keep_all= TRUE) %>% ungroup()
+
+all_vars$source = factor(all_vars$source)
+all_genes$source = factor(all_genes$source)
+all_comphet$source = factor(all_comphet$source)
+
+#
+# Datamanipulations
+#
+# add ranks for filtered data
+#d = d %>% mutate(Gado_rnk_filtered = dense_rank(Gado_zscore))
+
+conf=fromJSON(paste(readLines(params$conf), collapse=""))
+
+
+# load truth set
+truth = loadData(params$truth)
+
+```
+
+Data read from `r params$idx`.
+
+
+## Overview {.tabset .tabset-fade}
+
+### Notes
+
+### dataset completeness [QC]
+```{r}
+
+n_all = nrow(all_vars)
+n_indel = nrow(all_vars %>% filter( VarType=='INDEL'))
+n_cnv = nrow(all_vars %>% filter( VarType %in% CNV_TYPES ))
+na_table = all_vars %>% select_if(is.numeric) %>% droplevels() %>% summarise_all(funs(sum(! is.na(.))))
+print(
+  ggplot( reshape2::melt( na_table, id.vars=NULL), aes(x=variable, y=value)) + 
+  geom_bar(stat="identity") + 
+  coord_flip() + 
+  geom_hline(yintercept = n_all, col="red", linetype="dotted") +
+  geom_hline(yintercept = n_all - n_indel, col="green", linetype="dotted") +
+  geom_hline(yintercept = n_all - n_cnv, col="blue", linetype="dotted") +
+  ggtitle("# non-NA value per annotation field", "red: n_all, green: n_all - n_indel, bule: n_all - n_cnv") +
+  scale_y_log10() 
+)
+```
+
+```{r}
+
+### Small variants per dataset
+```{r}
+tab=all_vars %>% group_by(source) %>% summarise(n=n())
+tab = tab %>% mutate( is_outlier=is_out_mad(tab$n, thres = 12) )
+
+ggplot(tab, aes(x=source, y=n, fill=is_outlier)) + 
+         geom_bar(stat="identity")+
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Small variants per dataset") + xlab("") + ylab("count")
+
+outliers = filter(tab, is_outlier)$source
+print(paste("Outliers: ", paste0( outliers , collapse = ", ") ) )
+
+
+tab=all_vars %>% group_by(VarType) %>% summarise(n=n())
+ggplot(tab, aes(x=VarType, y=n, fill=VarType)) + 
+         geom_bar(stat="identity")+
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Variants per type") + xlab("") + ylab("count")
+
+```
+
+### CNVs  per dataset
+```{r}
+
+
+tab=filter(all_vars, VarType %in% CNV_TYPES) %>% group_by(source) %>% summarise(n=n(), l=sum(var_size))
+tab = tab %>% mutate( is_outlier=is_out_mad(tab$n, thres = 12) )
+ggplot(tab, aes(x=source, y=n, fill=is_outlier)) + 
+         geom_bar(stat="identity")+
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("CNVs per dataset") + xlab("") + ylab("count")
+
+ggplot(tab, aes(x=source, y=l, fill=is_outlier)) + 
+         geom_bar(stat="identity")+
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("CNV total size per dataset") + xlab("") + ylab("count")
+
+
+# density of CNV sizes
+ggplotly(
+  plotDensity( filter(all_vars, VarType %in% CNV_TYPES), "var_size", logx=T)
+)
+
+# show large CNVs
+DT::datatable(filter(all_vars, VarType %in% CNV_TYPES, var_size > 100000) )
+
+
+```
+
+CNV sizes show a peak at 300bp - this might be an artefact of the methods that created the annotations.
+
+### Samples per dataset
+```{r}
+all_peds = bind_rows(peds) %>% mutate(is_outlier = source %in% outliers )
+
+dat = bind_rows(peds) %>% group_by(fid) %>% summarise(n=n() ) %>% mutate(is_outlier = fid %in% outliers )
+ggplot(dat, aes(x=factor(fid), y=n, fill=is_outlier)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Samples per dataset") + xlab("") + ylab("count")
+
+dat = bind_rows(peds) %>% filter(affected==2) %>% group_by(fid) %>% summarise(n=n()) %>% mutate(is_outlier = fid %in% outliers )
+ggplot(dat, aes(x=factor(fid), y=n, fill=is_outlier)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Affected samples per dataset") + xlab("") + ylab("count")
+
+
+DT::datatable(bind_rows(peds) %>% filter(source %in% outliers) )
+```
+
+
+Explanation for outliers with too few variant counts:
+
+Explanation for outliers with too many variant counts:
+* 018Pul001 : increased number of vars/comphet candidates due to AFR origin and high CNV counts?
+
+
+
+### Genes per dataset
+```{r}
+tab=all_genes %>% group_by(source) %>% summarise(n=n()) %>% mutate(is_outlier = source %in% outliers )
+
+ggplot(tab, aes(x=factor(source), y=n, fill=is_outlier)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Genes per dataset") + xlab("") + ylab("count")
+
+```
+
+### Comphet candidates per dataset
+```{r}
+
+tab=all_comphet %>% group_by(source) %>% summarise(n=n()) %>% mutate(is_outlier = source %in% outliers )
+
+ggplot(tab, aes(x=factor(source), y=n, fill=is_outlier)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Comphet candidates per dataset") + xlab("") + ylab("count")
+
+tab = vars[["018Pul001"]] %>% distinct(Var2reg_id, .keep_all=T)
+print("G178449W: dad, G178450D: mum, GT_G178451F: affected child")
+table(paste0(tab$GT_G178449W,":",tab$GT_G178450D,":",tab$GT_G178451F))
+```
+
+### Comphet candidate genes per dataset
+```{r}
+
+tab=all_comphet %>% group_by(source) %>% distinct(Gene) %>% summarise(n=n()) %>% mutate(is_outlier = source %in% outliers )
+
+ggplot(tab, aes(x=factor(source), y=n, fill=is_outlier)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle("Comphet candidate genes per dataset") + xlab("") + ylab("count")
+
+
+```
+
+
+NOTE: outliers with missing parents not shown here!
+
+
+### comphet candidates
+
+```{r}
+
+print_comphet = function(ped_id, comphet_id) {
+  d = filter(comphet[[ped_id]], ID==comphet_id)
+  print(d)
+  print(filter(vars[[ped_id]], ID %in% c(d$V1, d$V2)))
+}
+
+for ( id in idx$ID) {
+  if ( nrow(comphet[[id]]) > 0) {
+    dat = comphet[[id]] %>% left_join( vars[[id]], by = c("V1" = "ID")  ) %>%  left_join( vars[[id]], by = c("V2" = "ID") )
+    counts = dat %>% group_by(VarType.x, VarType.y) %>% summarise(n=n())
+    counts2 = filter(dat, Reg_type.x %in% c("exon", "splicing", "utr"),  Reg_type.y %in% c("exon", "splicing", "utr"))  %>% group_by(VarType.x, VarType.y) %>% summarise(n=n())
+    print(
+      ggplot(counts %>% left_join(counts2, by=c("VarType.x", "VarType.y")), aes(x=paste0(VarType.x,"/",VarType.y))) + 
+        geom_bar(position="dodge", stat='identity', aes(y=n.x), fill=1) +
+        theme(axis.text.x=element_text(angle=90, hjust=1)) +
+        xlab("") + ylab("# comphet candidates") +
+        ggtitle(paste0(id))
+    )
+    print(
+      ggplot(counts %>% left_join(counts2, by=c("VarType.x", "VarType.y")), aes(x=paste0(VarType.x,"/",VarType.y))) + 
+        geom_bar(position="dodge", stat='identity', aes(y=n.y), fill=2) +
+        theme(axis.text.x=element_text(angle=90, hjust=1)) +
+        xlab("") + ylab("# exonic comphet candidates") +
+        ggtitle(paste0(id))
+    )
+  }
+}
+
+
+```
+
+```{r include=FALSE, eval=FALSE}
+## Genes that contain a lot/very few comphet hits
+# count how often genes are found containing comphets over cohort
+all_comphet_genes = data.table(ped_id=character(), gene=character())
+for ( id in idx$ID) {
+  ug=unique(comphet[[id]]$Gene)
+  if ( length(ug)>0){
+  add=data.table(ped_id=id, gene=ug)
+  all_comphet_genes=rbind(all_comphet_genes, add)                       
+  }
+}
+
+
+# add max tlen
+all_comphet_genes2=merge(all_comphet_genes, gene2maxtranslen, by.x="gene", by.y="external_gene_name", all.x=T)
+
+comphet2tlen2n = (all_comphet_genes2 %>% group_by(gene, max_transcript_length) %>% summarise(n=n()) %>% arrange(desc(n)))
+
+ggplot(comphet2tlen2n, aes(y=log(comphet2tlen2n$max_transcript_length), x=comphet2tlen2n$n, group=comphet2tlen2n$n)  ) + 
+  geom_boxplot() + xlab("# datasets containing a gene") + ylab("log(max_tlen)")
+# The boxplot shows an expected correlation between transcript length (maximum len for multiple isoforms chosen) and recurrence of genes containing comphet candidate hits.
+#NB: not all genes contained due to id mismatches between ensembl and our data.
+
+
+
+recurr_comphet_genes = comphet2tlen2n %>% group_by(n) %>% summarise(genes=n())
+ggplot( recurr_comphet_genes, aes(x=n, y=genes) ) + geom_bar(stat = "identity") + xlab("# datasets")
+#View(filter(comphet2tlen2n, n==11)) #show most recurrent comphet genes
+```
+
+
+
+## Gene related data  {.tabset .tabset-fade}
+
+### Notes
+
+Is the gene found in the GADO vs Exomiser plot?
+
+* 006Bra001	C	TUBA1A: yes
+* 010CCA001	A	POLR2A: no
+* 010PVN001	C	FLNA: no
+* 015ILD001	C	DOCK7: yes
+* 015ILD002	C	KMT2E: yes
+* 023CDA001	D	IRAK4: no
+* 036EBV001	C	Dock8: yes
+* 039Hyp001	C	SLC4A1: no
+
+### GADO / Exomiser
+```{r}
+plotlist = list()
+for ( id in idx$ID) {
+    d = genes[[id]] %>% group_by(Gene)
+    t = filter(truth, SAMPLE==id)$GENE
+    if (nrow(d) > 0 ) {
+      plotlist[[id]] = (
+        ggplotly( 
+          ggplot(genes[[id]], aes(x=Gado_zscore, y=Exomiser_GenePhenoScore, text=Gene)) + 
+            geom_point() + 
+            ggtitle(paste0(id, ": GADO vs Exomiser score [", paste0(t, collapse=","),"]")) +
+            geom_vline(xintercept = 0, col="lightgrey", linetype="dotted") +
+            geom_hline(yintercept = 0.5, col="lightgrey", linetype="dotted") +
+            gghighlight(Gene %in% t, label_key = Gene)
+          )
+      )
+    }
+}
+htmltools::tagList(setNames(plotlist, NULL))
+```
+
+### GADO / pLI_gnomad
+```{r}
+plotlist = list()
+for ( id in idx$ID) {
+    d = genes[[id]] %>% group_by(Gene)
+    t = filter(truth, SAMPLE==id)$GENE
+    if (nrow(d) > 0 ) {
+      plotlist[[id]] = (
+        ggplotly( 
+          ggplot(genes[[id]], aes(x=Gado_zscore, y=pLI_gnomad, text=Gene)) + 
+            geom_point() + 
+            ggtitle(paste0(id, ": GADO vs pLI [", paste0(t, collapse=","),"]")) +
+            geom_vline(xintercept = 0, col="lightgrey", linetype="dotted") +
+            gghighlight(Gene %in% t, label_key = Gene)
+          )
+      )
+    }
+}
+htmltools::tagList(setNames(plotlist, NULL))
+```
+
+### Exomiser / pLI_gnomad
+```{r}
+plotlist = list()
+for ( id in idx$ID) {
+    d = genes[[id]] %>% group_by(Gene)
+    t = filter(truth, SAMPLE==id)$GENE
+    if (nrow(d) > 0 ) {
+      plotlist[[id]] = (
+        ggplotly( 
+          ggplot(genes[[id]], aes(x=Exomiser_GenePhenoScore, y=pLI_gnomad, text=Gene)) + 
+            geom_point() + 
+            ggtitle(paste0(id, ": Exomiser score vs pLI [", paste0(t, collapse=","),"]")) +
+            geom_vline(xintercept = 0.5, col="lightgrey", linetype="dotted") +
+            gghighlight(Gene %in% t)
+          )
+      )
+    }
+}
+htmltools::tagList(setNames(plotlist, NULL))
+```
+
+### Supported inheritance models
+```{r}
+for ( id in idx$ID) {
+    d = genes[[id]] %>% group_by(Gene)
+    if (nrow(d) > 0 ) {
+       plotTable(genes[[id]], "Inh_model")
+    }
+}
+```
+
+##
+
+## Variant related data {.tabset .tabset-fade}
+
+### Notes
+
+### All variants per chr
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable(d,  "Chr", title=paste0(id, ": All variants per chr"), labels = CHR, factorOrder = CHR)
+    }
+}
+```
+
+### Histogram of numbers or variants per gene
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotHist(d, "Gene", removeChars=c("."), title=paste0(id, ": Histogram of numbers or variants per gene" ) )
+    }
+}
+```
+
+### Ref>Alt alleles of SNVs variants
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( filter(d, VarType == "SNV") %>% mutate( alleles = paste0(Ref, ">", Alt)), "alleles", paste0(id, " : Ref>Alt alleles of SNVs variants") )
+    }
+}
+```
+
+### SNVs vs INDELs
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( d, "VarType", paste0(id, " : SNVs vs INDELs" ) )
+    }
+}
+```
+
+### Support for recessive inheritance
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( d, "sup_rec", paste0(id, " : Support for recessive inheritance" ) )
+    }
+}
+```
+
+### Support for dominant inheritance
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( d, "sup_dom", paste0(id, " : Support for dominant inheritance" ) )
+    }
+}
+```
+
+### Support for denovo mutations
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( d, "sup_dnm", paste0(id, " : Support for denovo mutations" ) )
+    }
+}
+```
+
+### Database source
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( d, "Db_source", paste0(id, " : Database source") ) 
+    }
+}
+```
+
+### Region type
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+        plotTable( d, "Reg_type", paste0(id, " : Region type" ) )
+    }
+}
+```
+
+### Variant consequences
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotTable( d, "Consequence", paste0(id, " : Variant consequences" ) )
+    }
+}
+```
+
+### MaxPopAF
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotDistViol(d, "MaxPopAF", "VarType", title=id)
+    }
+}
+```
+
+### cohortAF
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotDistViol(d, "cohortAF", "VarType", title=id)
+    }
+}
+```
+
+### d_score
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotDistViol(d, "d_score", "VarType", title=id)
+      plotDistViol(d, "d_score", "Db_source", title=id)
+    }
+}
+```
+
+### a_score
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      plotDistViol(d, "a_score", "VarType", title=id)
+      plotDistViol(d, "a_score", "Db_source", title=id)
+    }
+}
+```
+
+### ROIs
+```{r}
+for ( id in idx$ID) {
+    d = vars[[id]]
+    if (nrow(d) > 0 ) {
+      for ( roi in conf$included_info_flags ) {
+        plotTable( d, roi, factorOrder=c(0,1), labels = c("False", "True"), title=paste0(id,": ", roi))
+      }
+    }
+}
+```
+
+## GQ per vartype
+
+```{r}
+
+for ( id in idx$ID) {
+    d = vars[[id]] %>% select( VarType, paste0("GQ_", peds[[id]]$id ) )
+    if (nrow(d) > 0 ) {
+      print(
+        ggplot(reshape2::melt(d), aes(x=VarType, y=value, fill=variable)) + 
+        geom_boxplot() +
+        ylab("GQ") + xlab("") + ggtitle("Genotype quality distributions")
+      )
+    }
+}
+
+
+```
+
+## GT per vartype
+
+```{r}
+
+for ( id in idx$ID) {
+    d = vars[[id]] %>% select( VarType, paste0("GT_", peds[[id]]$id ) )
+    if (nrow(d) > 0 ) {
+      print(
+        ggplot(reshape2::melt(d), aes(x=VarType, y=value, fill=variable)) + 
+        geom_violin() +
+        ylab("GT") + xlab("") + ggtitle("Genotype distributions")
+      )
+    }
+}
+
+
+```

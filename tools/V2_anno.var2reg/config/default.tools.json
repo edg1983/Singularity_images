@@ -1,0 +1,25 @@
+{
+	"_comment": "This file contains default tool configurations that can be overloaded by the configuration passed to the individual pipelines",
+	"tools": {
+        "samtools":             "samtools",
+        "bcftools":             "bcftools",
+        "bgzip":                "bgzip",
+        "tabix":                "tabix",
+        "snpEff":               "java -Xmx8g -jar /opt/snpEff/snpEff.jar",
+        "snpSift":              "java -Xmx8g -jar /opt/snpEff/snpSift.jar",
+        "bedtools":             "bedtools",
+        "fastqc":               "fastqc",
+        "sambamba":             "sambamba",
+        "bamstats":             "bamstats.py",
+        "pre":                  "pre.py",
+        "vcf-sort":             "vcf-sort",
+        "multiqc":              "multiqc",
+        "rtg":                  "rtg",
+        "picard-tools": 		"picard-tools",
+        "wigToBigWig":  		"wigToBigWig",
+        "bwakit":               "run-bwamem",
+        "platypus":             "platypus",
+        "genomic-tools": 		"genomic-tools",
+        "ngs-tools":     		"ngs-tools"
+	}
+}

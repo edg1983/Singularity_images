@@ -1,0 +1,9 @@
+#!/bin/bash
+MEMORY="-Xmx2g"
+if [[ ${1:0:4} == '-Xmx' ]] ;
+then
+        MEMORY=$1
+        echo "setting memory to $MEMORY"
+        shift
+fi
+java $MEMORY -jar $SOFTWARE/ngs-tools/ngs-tools-0.0.2.jar $@

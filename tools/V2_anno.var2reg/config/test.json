@@ -1,0 +1,75 @@
+{
+        "ref": {
+                "hs37d5": {
+                        "FASTA":  "/well/gel/HICF2/ref/genomes/hs37d5/hs37d5.fa",
+                        "snpEff": "GRCh37.75",
+                        "chr": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "X", "Y" ],
+                        "filter": "( QUAL >= 30 )"
+                        },
+                "GRCh38": {
+                        "FASTA":  "/well/gel/HICF2/ref/genomes/GRCh38/GCA_000001405.15_GRCh38_full_plus_hs38d1_analysis_set.fna",
+                        "snpEff": "GRCh38.86",
+                        "chr": ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY"],
+                        "filter": "( QUAL >= 30 )"
+                        }
+        },
+
+        "cons": {
+                "hs37d5": "/well/gel/HICF2/ref/conservation/consScoreDB/consScoreDB.hg19"
+                },
+        "roi": {
+                "hs37d5": {
+                        "RG":               "/well/gel/HICF2/ref/RG/20160825_RG-win1000-score1_-3-RELIABLE-above0.5.-min-UM75.bed.gz",
+                        "LowComplexity":    "/well/gel/HICF2/ref/lowcomplexity/LCR-hs37d5.bed.sorted.canonical.bed.gz",
+                        "LowMappability":   "/well/gel/HICF2/ref/mappability/hg19-GENOME.ISS.max50.CANONICAL.bed.gz",
+                        "TopVariableGenes": "/well/gel/HICF2/ref/geneanno/variableGenes/Top_one_perc_variable_genes_IVA-UCSC-refseq.genes.sorted.bed.gz",
+                        "EncodeReg":        "/well/gel/HICF2/ref/ENCODE/wgEncodeRegTfbsClusteredWithCellsV3.sorted.bed.gz"
+                },
+                "GRCh38": {
+                        "PanelApp":         "/well/gel/HICF2/ref/PanelApp/PanelApp.GRch38.sorted.CHR.bed.gz"
+                }
+        },
+        "anno": {
+                "hs37d5": {
+                        "gnomAD": ["/well/gel/HICF2/ref/alleleFrequencies/gnomAD/gnomad.exomes.r2.0.2.sites.vcf.gz", "AC,AF,AN"],
+                        "A1000G": ["/well/gel/HICF2/ref/alleleFrequencies/1000G/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5.20130502.sites.vcf.gz", "AC,AF,AN"],
+                        "ExAC":   ["/well/gel/HICF2/ref/alleleFrequencies/ExAC/ExAC.r0.3.sites.vep.vcf.gz", "AC,AF,AN"],
+                        "UK10K":  ["/well/gel/HICF2/ref/alleleFrequencies/UK10K/UK10K_COHORT.20140722.sites.vcf.gz", "AC,AF,AN"],
+                        "WGS500": ["/well/gel/HICF2/ref/alleleFrequencies/WGS500/union_gt.annotated.sorted.vcf.gz", "TC,HT,HM", true],
+                        "CADD":   ["/well/gel/HICF2/ref/CADD/whole_genome_SNVs.tsv.gz", "RawScore,PHRED"]
+                },
+                "GRCh38": {
+                        "gnomAD": ["/well/gel/HICF2/ref/alleleFrequencies/gnomAD/gnomad.genomes.r2.1.sites.grch38.vcf.gz", "AC,AF,AN", "min,self,max"],
+                        "A1000G": ["/well/gel/HICF2/ref/alleleFrequencies/1000G/1000G.grch38.vcf.gz", "AC,AF,AN"],
+                        "ExAC":   ["/well/gel/HICF2/ref/alleleFrequencies/ExAC/ExAC.0.3.GRCh38.vcf.gz", "AC,AF,AN"],
+                        "CADD":   ["/well/gel/HICF2/ref/CADD/GRCh38/CADD.GRCh38.v1.5.whole_genome_SNVs.tsv.gz", "RawScore,PHRED"]
+                },
+                "TODO" : {
+                        "UK10K":  ["/well/gel/HICF2/ref/alleleFrequencies/UK10K/UK10K_COHORT.20140722.sites.vcf.gz", "AC,AF,AN"],
+                        "WGS500": ["/well/gel/HICF2/ref/alleleFrequencies/WGS500/union_gt.annotated.sorted.vcf.gz", "TC,HT,HM", true]
+                }
+        },
+        "known": {
+                "hs37d5": {
+                        "COSMIC_Coding":    ["/well/gel/HICF2/ref/cosmic/v88/20190409_CosmicCodingMuts.vcf.gz"],
+                        "COSMIC_NonCoding": ["/well/gel/HICF2/ref/cosmic/v88/20190409_CosmicNonCodingVariants.vcf.gz"],
+                        "HGMD":             ["/well/gel/HICF2/ref/HGMD_PRO/HGMD_PRO_2014.4.sorted.vcf.gz"],
+                        "ClinVar":          ["/well/gel/HICF2/ref/ClinVar/clinvar_20190408.vcf.gz"]
+                },
+                "GRCh38": {
+                        "COSMIC_Coding":    ["/well/gel/HICF2/ref/cosmic/v89/GRCh38.CosmicCodingMuts.vcf.gz"],
+                        "COSMIC_NonCoding": ["/well/gel/HICF2/ref/cosmic/v89/GRCh38.CosmicNonCodingVariants.vcf.gz"],
+                        "ClinVar":          ["/well/gel/HICF2/ref/ClinVar/GRCh38/clinvar_20190624.vcf.gz"]
+                }
+        },
+        "tools": {
+        "bcftools":             "singularity exec --bind /well/gel/HICF2/ref/:/well/gel/HICF2/ref/:ro /well/gel/HICF2/software/singularity/Singularity_recipes_bcftools.sif bcftools",
+        "bwakit":               "/well/gel/HICF2/software/bwakit/bwakit-0.7.15/run-bwamem",
+        "platypus":             "python /well/gel/HICF2/software/platypus/platypus-latest/bin/Platypus.py callVariants",
+        "platypus2":            "platypus",
+        "platypus3":            "python /well/gel/HICF2/software/Platypus/bin/Platypus.py callVariants",
+        "genomic-tools":        "genomic-tools -Xmx20g",
+        "ngs-tools":            "ngs-tools -Xmx20g"
+        }
+        
+}

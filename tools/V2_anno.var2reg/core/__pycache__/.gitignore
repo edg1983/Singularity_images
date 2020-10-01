@@ -1,0 +1,13 @@
+/__init__.cpython-36.pyc
+/bam2fastqpipeline.cpython-36.pyc
+/bwakitpipeline.cpython-36.pyc
+/platypuspipeline.cpython-36.pyc
+/snpEffAnnoPipeline.cpython-36.pyc
+/snpEffFilterPipeline.cpython-36.pyc
+/snpEffPostfilter.cpython-36.pyc
+/utils.cpython-36.pyc
+/config.cpython-36.pyc
+/__init__.cpython-37.pyc
+/config.cpython-37.pyc
+/utils.cpython-37.pyc
+/vcfannoPipeline.cpython-36.pyc

@@ -1,0 +1,180 @@
+---
+title: "V2_call_comphet"
+author: "niko@well.ox.ac.uk"
+documentclass: article
+fontsize: 10pt
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    fig_caption: yes
+    fig_height: 10
+    fig_width: 10
+geometry: margin=1in
+classoption: a4paper
+params:
+    dir:
+        value: "/Users/niko.popitsch/Desktop/data/projects/WTCHG/HICF2/anno/comphet/results-comphet-af_0.10"
+ 
+---
+<style type="text/css">
+body, td {
+   font-size: 10px;
+}
+code.r{
+  font-size: 10px;
+}
+pre {
+  font-size: 10px
+}
+</style>
+
+```{r setup, include=FALSE}
+list.of.packages <- c("devtools","rlang", "R.utils", "dplyr", "lattice", "reshape2", "grid", "gridExtra", "tidyverse", "limma", "rjson", "egg", "rlist", "data.table", "PKNCA", "minpack.lm", "gganimate", "zoo", "topGO", "crayon", "corrplot", "plotly", "DT")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) { install.packages(new.packages) }
+lapply(list.of.packages, FUN = function(X) { do.call("require", list(X)) })
+select=dplyr::select
+
+ttheme <- gridExtra::ttheme_default(
+  core = list(fg_params=list(cex = 0.7)),
+  colhead = list(fg_params=list(cex = 0.7)),
+  rowhead = list(fg_params=list(cex = 0.7)))
+
+
+#
+# barplot the distribution of a given field
+#
+plotTable = function(d, field, title, factorOrder=NULL, labels=NULL, log=F, datatable=T, rot=F) {
+  dat=NULL
+  if ( is.null( factorOrder) ) {
+    dat=table(factor(d[[field]]), exclude = NULL)
+  } else {
+    dat=table(factor(d[[field]], levels=factorOrder), exclude = NULL)
+  }
+  xax=NULL
+  if ( ! is.null(labels)) {
+    xax = scale_x_discrete(labels=labels) 
+  } else {
+    xax=scale_x_discrete()
+  }
+  yax=NULL
+  if ( log == T ) {
+    yax = scale_y_continuous(name="log(count)", trans="pseudo_log")
+      #scale_y_log10(name="log(count)", trans="pseudo_log") 
+  } 
+  
+  plt=(ggplot(melt(dat), aes(x=factor(Var1), y=value)) +
+         geom_bar(stat="Identity") +
+         theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+         ggtitle(title) + xlab("") + ylab("count") + xax + yax)
+  if ( rot )
+    plt = plt + coord_flip()
+  #tbl=tableGrob(grid.table(t(dat), theme=ttheme))
+  tbl=tableGrob(t(dat), theme=ttheme)
+  if (datatable) {
+    grid.arrange(plt, tbl,
+                 nrow=2,
+                 as.table=TRUE,
+                 heights=c(5,1))
+  } else {
+    print(plt)
+  }
+}
+#plotTable(dnm, "Pedigree", "log", log=T)
+
+CHR=paste0("chr", c(seq(1,22), "X", "Y"))
+
+hits=read.table(paste0(params$dir, "/V2.comphet.hits.tsv"), header = T, sep="\t", na.strings = c("None", "na"))
+genes=read.table(paste0(params$dir, "/V2.comphet.genes.tsv"), header = T, sep="\t", na.strings = c("None", "na"))
+dnm=read.table(paste0(params$dir, "/V2.dnm.hits.tsv"), header = T, sep="\t", na.strings = c("None", "na"))
+dnmgenes=read.table(paste0(params$dir, "/V2.dnm.genes.tsv"), header = T, sep="\t", na.strings = c("None", "na"))
+ped=read.table(paste0(params$dir, "/V2.peds.tsv"), header = T, sep="\t", na.strings = c("None", "na"))
+ped = ped %>% distinct() # remove duplicates
+peds=unique(ped$Pedigree)
+
+peds_trio = filter(ped %>% group_by(Pedigree) %>% summarise(n_affected=sum(affected), n_members=n()), n_affected == 1 & n_members==3)$Pedigree
+genes_trio = filter(genes, Pedigree %in% peds_trio)
+hits_trio = filter(hits, Pedigree %in% peds_trio)
+dnm_trio = filter(dnm, Pedigree %in% peds_trio)
+
+COMPHET_AF_THRESH = 0.02
+DNM_AF_THRESH = 0.001
+DNM_GQ_THRESH = 30
+
+
+```
+
+Data read from `r params$dir`.
+
+## Distribution over genome
+
+```{r dist1}
+
+plotTable(hits,  "Chr", title="Hits per chr", labels = CHR, factorOrder = CHR)
+plotTable(genes, "Chr", title="Genes per chr", labels = CHR, factorOrder = CHR)
+plotTable(dnm,   "Chr", title="DNM per chr", labels = CHR, factorOrder = CHR)
+plotTable(dnm_trio,   "Chr", title="DNM [classical trio] per chr", labels = CHR, factorOrder = CHR)
+
+```
+
+When plotting the dnm table, we get a large number of hits which results from pedigrees such as '021ADF001'.
+Pedigree 021ADF001 reports no comphet hit but a large number of DNM candidates because dad is also affected and we cannot exclude inherited hits. 
+The comphet search will not report any results for such pedigrees. The de-novo search does, although its questionable how useful these results are.
+When we filter for "classic" trios (i.e., dad+mum unaffected, child affected) then we get on average `r length(dnm_trio)/length(peds_trio)` DNM candidates per trio which fits the expectation.
+
+
+
+## Distribution over pedigrees
+
+```{r dist2}
+
+
+plotTable(genes, "Pedigree", title="Comphet candidate genes per pedigree", labels = peds, factorOrder = peds, log=T, rot=T)
+plotTable(dnm,   "Pedigree", title="DNM per pedigree", labels = peds, factorOrder = peds, log=T, rot=T)
+plotTable(dnm_trio,   "Pedigree", title="DNM per classic Trio", labels = peds_trio, factorOrder = peds_trio, rot=T)
+
+```
+
+
+## Compound heterozygous candidates
+
+```{r alleles}
+
+plotTable( filter(hits, Type=="SNV") %>% mutate( alleles = paste0(Ref, ">", Alt)), "alleles", "Comphet SNVs" )
+
+plotTable(hits, "CSQ", "Consequences of comphet candidates (NA = CNVs)", rot=T, log=T)
+
+plotTable(hits, "Type", "Types of comphet candidates", rot=T, log=T)
+
+ggplot(hits %>% mutate_at(vars(maxAF), ~replace(., is.na(.), 0)), aes(x=maxAF)) + 
+  geom_density() +
+  ggtitle("Max pop AF distribution of comphet hit candidates (dashed line=default threshold)") +
+  geom_vline(xintercept = COMPHET_AF_THRESH, linetype="dashed")
+
+datatable(genes, rownames = FALSE, filter="top", options = list(pageLength = 10, scrollX=T), caption=paste0("Compound het candidate genes (n=", nrow(genes), ")" ) )
+datatable(hits, rownames = FALSE, filter="top", options = list(pageLength = 10, scrollX=T), caption=paste0("Compound het candidate variants (n=", nrow(hits), ")" ) )
+
+datatable(genes_trio, rownames = FALSE, filter="top", options = list(pageLength = 10, scrollX=T), caption=paste0("Compound het candidate genes [classical trio] (n=", nrow(genes_trio), ")" ) )
+datatable(hits_trio, rownames = FALSE, filter="top", options = list(pageLength = 10, scrollX=T), caption=paste0("Compound het candidate variants [classical trio] (n=", nrow(hits_trio), ")" ) )
+
+```
+
+## DNM
+```{r dnm}
+# are the SAMD9L DNM hits there? (016Imm001.ped) on GRCh38, these should be at chr7:93132619 T>C and chr7:93134896 C>T
+# are the SRS hits there? (see list in email)
+# NOTE: we could run scalpel on the respective genomes to get more evidence (e.g., readcounts) for these DNMs
+
+ggplot(dnm_trio %>% mutate_at(vars(maxAF), ~replace(., is.na(.), 0)), aes(x=maxAF)) + 
+  geom_density() +
+  ggtitle("Max pop AF distribution of DNM candidates (dashed line=default threshold)")+
+  geom_vline(xintercept = DNM_AF_THRESH, linetype="dashed")
+
+plotTable(dnm, "CSQ", "Consequences of DNM candidates (NA = CNVs)", rot=T)
+
+#plotTable( filter(dnm_trio, Type=="SNV") %>% mutate( alleles = paste0(Ref, ">", Alt)), "alleles", "Classic trio de-novo SNVs" )
+
+datatable(dnm_trio, rownames = FALSE, filter="top", options = list(pageLength = 10, scrollX=T), caption="DNM [classical trio]" )
+
+```
