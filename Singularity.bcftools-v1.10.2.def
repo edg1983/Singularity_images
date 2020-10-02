@@ -6,15 +6,12 @@ From: ubuntu:bionic
 
 %environment
     SHELL=/bin/bash
-    PATH=$PATH:/usr/local/bin:/opt/root/bin
+    PATH=$PATH:/usr/local/bin
     LC_ALL=C.UTF-8
-
-%files
-    resources/ROH.ExpHunter.GADO/ROH/* /resources/ROH
 
 %help
     Perform ROH detection with bcftools roh
-    Includes chromosomes map files for GRCh38 in /resources/ROH
+    You will need chromosomes map files to be mounted in the container
 
 %post
     apt-get update
@@ -40,6 +37,10 @@ From: ubuntu:bionic
     tar -jxvf bcftools-1.10.2.tar.bz2
     rm bcftools-1.10.2.tar.bz2
     cd bcftools-1.10.2
+    ./configure
+    make
+    make install
+    cd htslib-1.10.2
     ./configure
     make
     make install
