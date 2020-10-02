@@ -33,7 +33,8 @@ From: centos:8
         wget \
         zlib-devel \
         autoconf \
-        tar
+        tar \
+	procps
         #apt-transport-https \
         #build-essential \
         #language-pack-en-base \
