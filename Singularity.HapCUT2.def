@@ -4,7 +4,11 @@ From: ubuntu:bionic
 %environment
     SHELL=/bin/bash
     PATH=$PATH:/usr/local/bin
+    export C_INCLUDE_PATH=$C_INCLUDE_PATH:/opt/htslib-1.11
+    export LIBRARY_PATH=$LIBRARY_PATH:/opt/htslib-1.11
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/htslib-1.11
     LC_ALL=C.UTF-8
+
 
 %help
     HapCUT2 container latest version from
@@ -45,7 +49,6 @@ From: ubuntu:bionic
     cd /opt
     git clone https://github.com/vibansal/HapCUT2.git
     cd HapCUT2
-    ln -s /opt/htslib-1.11 htslib
-    make
+    make HTSLIB=/opt/htslib-1.11
     ln -s /opt/HapCUT2/build/HAPCUT2 /usr/local/bin/HAPCUT2
     ln -s /opt/HapCUT2/build/extractHAIRS /usr/local/bin/extractHAIRS
