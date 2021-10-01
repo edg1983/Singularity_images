@@ -1,5 +1,5 @@
-Bootstrap: docker
-From: ubuntu:bionic
+Bootstrap: library
+From: centos:8
 
 %setup
     mkdir -p ${SINGULARITY_ROOTFS}/resources
@@ -46,11 +46,6 @@ From: ubuntu:bionic
     ln --symbolic --force /opt/lumpy-sv/bin/lumpy /usr/local/bin
     ln --symbolic --force /opt/lumpy-sv/scripts/pairend_distro.py /usr/local/bin
 
-    ## Install vawk
-    cd /opt
-    git clone https://github.com/cc2qe/vawk.git
-    ln --symbolic --force /opt/vawk/vawk /usr/local/bin
-
     ## Install ROOT
     cd /opt/ && wget https://root.cern.ch/download/root_v6.13.02.Linux-ubuntu16-x86_64-gcc5.4.tar.gz
     tar -xvf root_v6.13.02.Linux-ubuntu16-x86_64-gcc5.4.tar.gz
@@ -78,6 +73,13 @@ From: ubuntu:bionic
     ./configure
     make
     make install
+
+    ## Install bedtools
+    cd /opt
+    mkdir bedtools && cd bedtools
+    wget https://github.com/arq5x/bedtools2/releases/download/v2.29.2/bedtools.static.binary
+    chmod a+x bedtools.static.binary
+    ln --symbolic --force /opt/bedtools/bedtools.static.binary /usr/local/bin/bedtools
     
     ## Install CNVnator
     cd /opt/ && wget https://github.com/abyzovlab/CNVnator/releases/download/v0.4.1/CNVnator_v0.4.1.zip
@@ -86,7 +88,9 @@ From: ubuntu:bionic
     cd CNVnator_v0.4.1/src
     ln -s /opt/samtools-1.10/ samtools
     make LIBS="-lcrypto"
-
-
     ln --symbolic --force /opt/CNVnator_v0.4.1/src/cnvnator /usr/local/bin
     ln --symbolic --force /opt/CNVnator_v0.4.1/cnvnator2VCF.pl /usr/local/bin
+
+    #Install our SV utils
+    cd /opt
+    git 
